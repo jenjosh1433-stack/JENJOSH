@@ -1,0 +1,59 @@
+from pathlib import Path
+import re
+
+src = Path("/mnt/data/JENJOSH_Learning_Hub_REFERENCES_APA_STYLE_CLEAN.html")
+html = src.read_text(encoding="utf-8")
+
+# Locate the exact header text and add a reusable class plus animation/shadow styles.
+m = re.search(r'<(h[1-6])([^>]*)>(.*?)</\1>', html, flags=re.I | re.S)
+matches = list(re.finditer(r'JENJOSH\s+LEARNING\s+HUB', html, flags=re.I))
+if not matches:
+    raise RuntimeError("Could not find the JENJOSH LEARNING HUB heading.")
+
+pos = matches[0].start()
+open_tag_start = html.rfind("<", 0, pos)
+open_tag_end = html.find(">", open_tag_start) + 1
+open_tag = html[open_tag_start:open_tag_end]
+
+if "jenjosh-title-bubble" not in open_tag:
+    if re.search(r'class\s*=', open_tag, flags=re.I):
+        open_tag = re.sub(
+            r'class\s*=\s*(["\'])(.*?)\1',
+            lambda x: f'class={x.group(1)}{x.group(2)} jenjosh-title-bubble{x.group(1)}',
+            open_tag, count=1, flags=re.I
+        )
+    else:
+        open_tag = open_tag[:-1] + ' class="jenjosh-title-bubble">'
+
+html = html[:open_tag_start] + open_tag + html[open_tag_end:]
+
+style = """
+<style>
+.jenjosh-title-bubble {
+  display: inline-block;
+  text-shadow: 2px 3px 4px rgba(0, 0, 0, 0.95), 0 0 2px rgba(0, 0, 0, 0.7);
+  animation: jenjoshTitleBubble 2.8s ease-in-out infinite;
+  transform-origin: center;
+  will-change: transform;
+}
+@keyframes jenjoshTitleBubble {
+  0%, 100% { transform: translateY(0) scale(1); }
+  25% { transform: translateY(-3px) scale(1.025); }
+  50% { transform: translateY(0) scale(1.045); }
+  75% { transform: translateY(-2px) scale(1.02); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jenjosh-title-bubble { animation: none; }
+}
+</style>
+"""
+if "jenjoshTitleBubble" not in html:
+    if "</head>" in html.lower():
+        idx = html.lower().rfind("</head>")
+        html = html[:idx] + style + html[idx:]
+    else:
+        html = style + html
+
+out = Path("/mnt/data/JENJOSH_Learning_Hub_APA_CLEAN_TITLE_SHADOW_BUBBLE.html")
+out.write_text(html, encoding="utf-8")
+print(f"Saved {out} ({out.stat().st_size:,} bytes)")
